@@ -73,7 +73,7 @@ Los antiguos desbloqueos de jefes se migran a los equivalentes nuevos para no ce
 
 Seis parcelas al sur de la cabaña. Sembrar consume una semilla; regar consume una carga. La regadera se llena hasta seis cargas en el pozo. Un cultivo regado tarda cuatro minutos activos; cosechar entrega tres hortalizas (cuatro con habilidad) y dos semillas.
 
-Tres espacios de vivero aceptan plantones. Crecen en diez minutos, permiten talar y entregan ocho maderas y un plantón. También se pueden replantar los tocones de los árboles originales; recuperan su geometría y colisiones tras diez minutos, cuando el jugador no está encima. Los plantones se preparan en la mochila por cuatro maderas.
+Tres espacios de vivero aceptan plantones. Crecen en diez minutos, permiten talar y entregan ocho maderas y un plantón. También se pueden replantar los tocones de los árboles originales; recuperan su geometría y colisiones tras diez minutos, cuando el jugador no está encima. Cada árbol original talado entrega también un plantón, suficiente para replantarlo sin gastar madera. Los plantones adicionales se preparan en la mochila por una madera.
 
 Bayas: cinco minutos. Rocas de recurso fuera de las cuatro áreas monumentales: quince minutos, con el jugador lejos. Las rocas de ruinas, cristales originales y cofres no se regeneran automáticamente. Las piedras grandes requieren pico mejorado y aportan mineral. Tiempo y crecimiento se guardan, pero no avanzan con el juego cerrado.
 

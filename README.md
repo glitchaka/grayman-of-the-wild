@@ -96,3 +96,11 @@ La pantalla inicial muestra el mundo con una cámara lenta (inmóvil si se prefi
 Ver [TANDA-2.md](TANDA-2.md) para controles, valores de progresión, necesidades, fauna, huerto, renovación, secretos, habitantes y requisitos de acceso. El juego incorpora un diario desde el indicador de nivel o la tecla I. Los desbloqueos antiguos se conservan, y a partir de esta versión se guarda también la posición. Esta entrega está pendiente de la prueba del propietario; no se ejecutaron pruebas ni comprobaciones de funcionamiento.
 
 Repositorio de respaldo: https://github.com/glitchaka/grayman-of-the-wild
+
+## Pesca y encuentros por turnos
+
+Prepara la caña desde la mochila por 8 maderas. Las señales junto al arroyo, costa, estanque de la cueva y santuario permiten pescar. Tras 4–8 segundos pica una perca, trucha o carpa y comienza un combate por turnos en una escena 3D propia. Recoge sedal, da un tirón fuerte, protege tu posición, usa comida o cebo y decide si abandonar. Agotar la resistencia captura al pez y entrega pescado y XP de Pesca. El pescado se asa en el fogón/cocina por una madera y repone alimento y energía.
+
+Los jabalíes y lobos inician el mismo sistema de turnos al enfrentarse al jugador; los animales huidizos mantienen la caza existente. Menús: Luchar, Protegerse, Mochila y Huir. Ataques normales/fuertes consumen energía, tomar aliento la recupera, comida repone HP y defender reduce la siguiente respuesta. Se conserva la salud del animal al huir y las victorias dejan alimento recolectable. La partida guarda los encuentros para retomarlos tras recargar.
+
+Al perder cualquier encuentro, GreyMan se desvanece y despierta **cuatro horas de juego después, en el mismo lugar, con 50/100 HP**. Son 180 segundos en el reloj interno (día de 18 minutos), no cuatro horas reales de espera. El salto de tiempo y la posición se guardan incluso si se cierra la página durante el desvanecimiento. Hay un periodo de gracia de 90 segundos activos para evitar otro ataque inmediato al despertar. No se ejecutaron pruebas del juego en esta actualización.

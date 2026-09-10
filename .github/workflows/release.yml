@@ -1,0 +1,41 @@
+name: Publicar release
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: release-${{ github.sha }}
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el proyecto
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Empaquetar y publicar
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_NUMBER: ${{ github.run_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="v0.2.${RELEASE_NUMBER}"
+          git archive --format=zip --output=grayman-of-the-wild.zip "$GITHUB_SHA"
+          {
+            echo "Proyecto completo de GrayMan of the Wild."
+            echo
+            echo "Commit: $GITHUB_SHA"
+            echo
+            echo "Incluye código, escenario 3D, personaje y recursos."
+            echo "Empaquetado sin compilar, ejecutar el juego ni realizar pruebas."
+            echo "Versión pendiente de la prueba del propietario."
+          } > release-notes.txt
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$tag" grayman-of-the-wild.zip --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$tag" grayman-of-the-wild.zip --target "$GITHUB_SHA" --title "GrayMan of the Wild $tag" --notes-file release-notes.txt --prerelease --repo "$GITHUB_REPOSITORY"
+          fi

@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {createHeroineModel} from './characters/heroines.js';
 // All additions are geometry, in the same metre scale as the original world.
 export function createLifeWorld(world){
  const root=new T.Group();root.name='Vida_cotidiana';world.layers.Ruinas.add(root);const mats=new Map(),boxGeo=new T.BoxGeometry(1,1,1);
@@ -40,52 +41,10 @@ export function createLifeWorld(world){
  const flowerPatches=[[-46,80],[-55,93],[-37,73],[-26,52],[-14,38],[24,28],[35,12],[-74,55],[-62,71],[-70,-10],[28,-22],[-42,-40]].map(([x,z],i)=>flowerPatch(x,z,'flower-'+i)).filter(Boolean);
  const anvil=group('Enclume_du_campement',-52,85,2);box(anvil,0,.25,0,.8,.5,.8,0x6b4937);box(anvil,0,.58,0,.45,.2,.75,0x3d4349);box(anvil,0,.7,.1,.35,.15,.5,0x4f5861);box(anvil,0,.72,-.35,.18,.1,.3,0x5a6570);box(anvil,.1,.8,.1,.1,.06,.2,0x8a9299);box(anvil,.1,.79,-.08,.04,.04,.25,0x8b6540);box(anvil,.6,.2,.2,.6,.4,.6,0x50545a);box(anvil,.6,.42,.2,.5,.06,.5,0x2b221d);box(anvil,.6,.45,.2,.2,.05,.2,0xe85d26);const forgeLight=new T.PointLight(0xff6a28,1.2,3);forgeLight.position.set(.6,.6,.2);anvil.add(forgeLight);collider(-52,2.5,85,1.2,1,1.2);
  const alembic=group('Alambic_du_campement',-44,86,2);box(alembic,0,.35,0,1.3,.7,.7,0x7a5d3f);box(alembic,-.35,.8,0,.24,.3,.24,0x56a3b0);box(alembic,-.35,.98,0,.08,.15,.08,0x6ac2d1);box(alembic,-.15,.95,0,.2,.06,.06,0xb27747);box(alembic,0,.78,0,.18,.22,.18,0xe06060);box(alembic,.22,.78,.1,.14,.24,.14,0x4dd97b);box(alembic,.22,.76,-.15,.16,.2,.16,0xf2be4b);box(alembic,.42,.78,0,.14,.22,.14,0x9f56d9);collider(-44,2.5,86,1.4,1.1,.8);
-  // The 3 Detailed Heroines: Mara (Maid), Scarlett (Smith), Lyra (Mage Elf)
-  function createHeroine(id, name, type, x, z, y=2){
-   const g=group('Heroine_'+id,x,z,y);
-   const body=new T.Group();body.position.y=0.82;g.add(body);
-   const head=new T.Group();head.position.y=0.55;body.add(head);
-   const leftArm=new T.Group();leftArm.position.set(-0.32,0.45,0);body.add(leftArm);
-   const rightArm=new T.Group();rightArm.position.set(0.32,0.45,0);body.add(rightArm);
-   const tool=new T.Group();rightArm.add(tool);
-   if(type==='mara'){
-    box(head,0,0,0,.42,.42,.38,0xfcd7b8);box(head,0,.18,0,.46,.18,.42,0xf3ce72);
-    box(head,-.22,-.04,0,.14,.36,.38,0xf0cb73);box(head,.22,-.04,0,.14,.36,.38,0xf0cb73);
-    box(head,0,-.06,-.2,.44,.32,.12,0xf3ce72);box(head,0,.27,.02,.48,.12,.24,0xffffff);
-    box(head,-.1,.02,.2,.08,.08,.03,0x38bdf8);box(head,.1,.02,.2,.08,.08,.03,0x38bdf8);
-    box(head,-.12,-.06,.2,.08,.05,.02,0xf472b6);box(head,.12,-.06,.2,.08,.05,.02,0xf472b6);
-    box(body,0,.3,0,.46,.32,.32,0x7dd3fc);box(body,0,.38,.17,.24,.12,.04,0xffffff);
-    box(body,0,.33,.18,.1,.08,.05,0x0f172a);box(body,0,.12,0,.42,.18,.28,0x1e293b);
-    box(body,0,-.12,0,.58,.36,.44,0x7dd3fc);box(body,0,-.06,.18,.38,.32,.06,0xf8fafc);
-    box(leftArm,0,-.18,0,.14,.38,.14,0xfcd7b8);box(leftArm,0,-.02,0,.18,.14,.18,0x7dd3fc);
-    box(rightArm,0,-.18,0,.14,.38,.14,0xfcd7b8);box(rightArm,0,-.02,0,.18,.14,.18,0x7dd3fc);
-    for(const s of [-1,1]){box(body,s*.15,-.45,0,.16,.38,.16,0xf8fafc);box(body,s*.15,-.65,.04,.18,.12,.24,0x1e293b)}
-    box(tool,0,-.36,.14,.18,.22,.24,0x475569);box(tool,0,-.26,.24,.06,.08,.22,0x64748b);
-   }else if(type==='scarlett'){
-    box(head,0,0,0,.42,.42,.38,0xfcd7b8);box(head,0,.18,0,.46,.2,.44,0xe05328);
-    box(head,-.24,-.1,0,.16,.48,.42,0xdd4b22);box(head,.24,-.1,0,.16,.48,.42,0xdd4b22);
-    box(head,0,-.16,-.2,.46,.56,.16,0xe05328);box(head,-.1,.02,.2,.08,.08,.03,0x10b981);
-    box(head,.1,.02,.2,.08,.08,.03,0x10b981);box(head,0,-.04,.2,.22,.06,.02,0xb45309);
-    box(body,0,.3,0,.46,.3,.3,0x221f26);box(body,0,.34,.16,.16,.16,.04,0xf59e0b);
-    box(body,0,.12,0,.42,.16,.28,0x451a03);box(body,0,-.14,0,.44,.38,.36,0x1c1917);
-    box(body,0,-.05,.16,.34,.36,.06,0x78350f);box(leftArm,0,-.18,0,.15,.38,.15,0x451a03);
-    box(rightArm,0,-.18,0,.15,.38,.15,0x451a03);
-    for(const s of [-1,1]){box(body,s*.14,-.45,0,.16,.38,.16,0x1c1917);box(body,s*.14,-.65,.04,.18,.14,.24,0x292524)}
-    box(tool,0,-.36,0,.07,.55,.07,0x92400e);box(tool,0,-.6,0,.26,.18,.38,0x64748b);box(tool,0,-.6,.19,.22,.14,.08,0x94a3b8);
-   }else{
-    box(head,0,0,0,.38,.42,.36,0xfde8db);box(head,0,.18,0,.44,.2,.42,0x2e1065);
-    box(head,-.23,-.15,0,.14,.58,.4,0x3b0764);box(head,.23,-.15,0,.14,.58,.4,0x3b0764);
-    box(head,0,-.22,-.2,.44,.68,.16,0x2e1065);box(head,-.28,.04,-.04,.2,.1,.08,0xfde8db);
-    box(head,.28,.04,-.04,.2,.1,.08,0xfde8db);box(head,-.09,.03,.19,.08,.08,.03,0x2dd4bf);
-    box(head,.09,.03,.19,.08,.08,.03,0x2dd4bf);box(body,0,.3,0,.42,.3,.28,0x1d4ed8);
-    box(body,0,.32,.15,.2,.18,.04,0xbfdbfe);box(body,0,.12,0,.38,.12,.26,0x1e3a8a);
-    box(body,0,-.18,0,.46,.48,.38,0x1d4ed8);box(body,.12,-.18,.06,.2,.46,.22,0xfde8db);
-    box(leftArm,0,-.18,0,.12,.38,.12,0x1e3a8a);box(rightArm,0,-.18,0,.12,.38,.12,0xfde8db);
-    for(const s of [-1,1]){box(body,s*.14,-.48,0,.14,.38,.14,0xfde8db);box(body,s*.14,-.66,.04,.16,.12,.22,0x1e1b4b)}
-    box(tool,0,-.36,.1,.14,.18,.14,0xa855f7);box(tool,0,-.25,.1,.06,.1,.06,0x7dd3fc);
-    const magicGlow=new T.PointLight(0xa855f7,1.2,3);magicGlow.position.set(0,-.36,.15);tool.add(magicGlow);
-   }
-   return {h:world.buildings.find(b=>b.id===(type==='mara'?'home':type==='scarlett'?'workshop':'store')),g,body,head,leftArm,rightArm,tool,x,z,y,id:type==='mara'?'home':type==='scarlett'?'workshop':'store',type,name,targetX:x,targetZ:z,animTimer:0,workTimer:0};
+  function createHeroine(id,name,type,x,z,y=2){
+   const model=createHeroineModel(type,world.gradient);
+   model.g.name='Heroine_'+id;model.g.position.set(x,y,z);root.add(model.g);
+   return {...model,h:world.buildings.find(b=>b.id===id),x,z,y,id,type,name,targetX:x,targetZ:z,animTimer:0,workTimer:0};
   }
 
   const residents=[

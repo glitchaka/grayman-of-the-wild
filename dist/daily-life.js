@@ -460,6 +460,7 @@ export function createDailyLife({world,character,camera,controls,harvesting,livi
      npc.head.rotation.y=Math.sin(state.clock*1.1)*0.15;npc.body.rotation.z=Math.sin(state.clock*1.3)*0.02;
     }
    }
+   npc.animate(dt,state.clock);
   }
   const inChamber=Math.abs(character.position.x-85)<4.4&&Math.abs(character.position.z+54)<4.4&&isWalking();visual.chamberRoof.visible=!inChamber;for(const wall of visual.chamber.children){if(Math.abs(wall.position.x)===4.5)wall.visible=!inChamber||(camera.position.x-85)*wall.position.x<=0;if(Math.abs(wall.position.z)===4.5)wall.visible=!inChamber||(camera.position.z+54)*wall.position.z<=0;}
   const maxHp=maxPlayerHp();document.getElementById('lifeLevel').textContent=`Nv. ${state.level} · ${Math.floor(state.xp)}/${requirement(state.level)} XP`;document.getElementById('lifeXP').style.width=`${Math.min(100,state.xp/requirement(state.level)*100)}%`;for(const k of ['hunger','energy'])document.getElementById(k+'Meter').value=state[k];

@@ -12,23 +12,57 @@ import {trackResources,createHarvesting} from './harvesting.js';
 import {createGreyMan} from './characters/greyman/model.js';
 const $=id=>document.getElementById(id),view=$('view');
 const existingSave=hasSavedGame();let welcome=null;
-let renderer,world;
+let renderer,world,living=null,daily=null;
 try{renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});}catch(e){$('loading').innerHTML='<b>No se pudo iniciar WebGL 2</b><span>Activa la aceleración gráfica del navegador y vuelve a abrir el escenario.</span>';throw e;}
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.0;renderer.setClearColor(0x759b9c);view.appendChild(renderer.domElement);
 const scene=new T.Scene();scene.background=new T.Color(0x759b9c);scene.fog=new T.Fog(0x759b9c,210,450);
 const aspect=innerWidth/innerHeight;const camera=new T.OrthographicCamera(-45*aspect,45*aspect,45,-45,.2,800);camera.position.set(70,90,40);const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=.09;controls.minZoom=.22;controls.maxZoom=24;controls.minPolarAngle=.17;controls.maxPolarAngle=Math.PI*.47;controls.target.set(16,6,-54);controls.update();
 const hemi=new T.HemisphereLight(0xeaf6ed,0x435247,2.2);scene.add(hemi);const sun=new T.DirectionalLight(0xffefcd,3);sun.position.set(-85,150,60);sun.castShadow=true;sun.shadow.mapSize.set(4096,4096);Object.assign(sun.shadow.camera,{left:-150,right:150,top:150,bottom:-150,near:1,far:400});sun.shadow.bias=-.00025;sun.shadow.normalBias=.12;scene.add(sun);const fill=new T.DirectionalLight(0x8ad9d8,.5);fill.position.set(70,40,-100);scene.add(fill);
+const moonMesh=new T.Mesh(new T.SphereGeometry(6.5,16,16),new T.MeshBasicMaterial({color:0xddeaff,transparent:true,opacity:1}));moonMesh.position.set(65,110,-50);scene.add(moonMesh);
+const skyDay=new T.Color(0x759b9c),skySunset=new T.Color(0x352b48),skyNight=new T.Color(0x090f1b),skyDawn=new T.Color(0x706e88);
+const fogDay=new T.Color(0x759b9c),fogSunset=new T.Color(0x2f2742),fogNight=new T.Color(0x0b1220),fogDawn=new T.Color(0x6b6982);
+const sunDayCol=new T.Color(0xffefcd),sunSunsetCol=new T.Color(0xf38548),sunNightCol=new T.Color(0x9ec0ff),sunDawnCol=new T.Color(0xffc285);
+const hemiSkyDay=new T.Color(0xeaf6ed),hemiSkySunset=new T.Color(0xb5927c),hemiSkyNight=new T.Color(0x192840),hemiSkyDawn=new T.Color(0xc9b09a);
+const hemiGndDay=new T.Color(0x435247),hemiGndSunset=new T.Color(0x2d2b38),hemiGndNight=new T.Color(0x091017),hemiGndDawn=new T.Color(0x2c3530);
+const curSky=new T.Color(),curFog=new T.Color(),curSun=new T.Color(),curHemiSky=new T.Color(),curHemiGnd=new T.Color();
+function updateAtmosphere(){
+ const clockVal=daily?.state?.clock??0;const minute=Math.floor((clockVal%1080)/1080*1440+480)%1440;
+ let t=0,sunInt=3,hemiInt=2.2,sunX=-85,sunY=150,sunZ=60,nightFactor=0;
+ if(minute>=360&&minute<1080){
+  curSky.copy(skyDay);curFog.copy(fogDay);curSun.copy(sunDayCol);curHemiSky.copy(hemiSkyDay);curHemiGnd.copy(hemiGndDay);sunInt=3;hemiInt=2.2;nightFactor=0;
+ }else if(minute>=1080&&minute<1230){
+  t=(minute-1080)/150;nightFactor=t;
+  if(t<.5){const t1=t*2;curSky.lerpColors(skyDay,skySunset,t1);curFog.lerpColors(fogDay,fogSunset,t1);curSun.lerpColors(sunDayCol,sunSunsetCol,t1);curHemiSky.lerpColors(hemiSkyDay,hemiSkySunset,t1);curHemiGnd.lerpColors(hemiGndDay,hemiGndSunset,t1);sunInt=T.MathUtils.lerp(3,2,t1);hemiInt=T.MathUtils.lerp(2.2,1.6,t1)}
+  else{const t2=(t-.5)*2;curSky.lerpColors(skySunset,skyNight,t2);curFog.lerpColors(fogSunset,fogNight,t2);curSun.lerpColors(sunSunsetCol,sunNightCol,t2);curHemiSky.lerpColors(hemiSkySunset,hemiSkyNight,t2);curHemiGnd.lerpColors(hemiGndSunset,hemiGndNight,t2);sunInt=T.MathUtils.lerp(2,.85,t2);hemiInt=T.MathUtils.lerp(1.6,.85,t2)}
+  sunX=T.MathUtils.lerp(-85,-130,t);sunY=T.MathUtils.lerp(150,45,t);sunZ=T.MathUtils.lerp(60,90,t);
+ }else if(minute>=1230||minute<330){
+  curSky.copy(skyNight);curFog.copy(fogNight);curSun.copy(sunNightCol);curHemiSky.copy(hemiSkyNight);curHemiGnd.copy(hemiGndNight);sunInt=.85;hemiInt=.85;sunX=65;sunY=110;sunZ=-50;nightFactor=1;
+ }else{
+  t=(minute-330)/30;nightFactor=1-t;
+  curSky.lerpColors(skyNight,skyDay,t);curFog.lerpColors(fogNight,fogDay,t);curSun.lerpColors(sunNightCol,sunDayCol,t);curHemiSky.lerpColors(hemiSkyNight,hemiSkyDay,t);curHemiGnd.lerpColors(hemiGndNight,hemiGndDay,t);
+  sunInt=T.MathUtils.lerp(.85,3,t);hemiInt=T.MathUtils.lerp(.85,2.2,t);sunX=T.MathUtils.lerp(-40,-85,t);sunY=T.MathUtils.lerp(45,150,t);sunZ=T.MathUtils.lerp(30,60,t);
+ }
+ scene.background.copy(curSky);scene.fog.color.copy(curFog);scene.fog.near=T.MathUtils.lerp(210,130,nightFactor);scene.fog.far=T.MathUtils.lerp(450,310,nightFactor);renderer.setClearColor(curSky);sun.color.copy(curSun);sun.intensity=sunInt;sun.position.set(sunX,sunY,sunZ);hemi.color.copy(curHemiSky);hemi.groundColor.copy(curHemiGnd);hemi.intensity=hemiInt;
+ moonMesh.visible=nightFactor>.05;moonMesh.material.opacity=Math.min(1,nightFactor*1.3);
+ if(world?.buildings){
+  for(const h of world.buildings){
+   for(const g of Object.values(h.walls||{})){
+    g.traverse(m=>{if(m.isMesh&&m.material&&m.name&&m.name.includes('_e6b968')){m.material.emissive.setHex(0xffaa33);m.material.emissiveIntensity=0.15+nightFactor*1.35;}});
+   }
+  }
+ }
+}
 let unlocked=new Set();try{unlocked=new Set(JSON.parse(localStorage.getItem('mundo-unlocks-v1')||'[]'))}catch{}if(unlocked.delete('boss:guardian-torre'))unlocked.add('quest:paso-cueva');if(unlocked.delete('boss:corazon-cristal'))unlocked.add('quest:aguas-restauradas');let free=false,walking=false,animating=true,navMesh=null,focusId='sanctuary',cameraTween=null;const keys=new Set();const clock=new T.Clock();let toastTimer=0,lastMapTime=0;
 function toast(s){$('toast').textContent=s;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),3500)}
 window.addEventListener('error',e=>{if($('loading').style.display!=='none'){$('loading').innerHTML='<b>No se pudo terminar de cargar el escenario</b><span>'+String(e.message).replace(/[<>]/g,'')+'</span>';}});
-await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+try {
+await new Promise(r=>{let d=false;const f=()=>{if(!d){d=true;r()}};requestAnimationFrame(()=>requestAnimationFrame(f));setTimeout(f,100)});
 world=trackResources(installCozy(new World())).build();scene.add(world.root);
 const greyMan=createGreyMan(),character=greyMan.root;character.position.set(-57,world.elevation(-57,77),77);character.rotation.y=.5;scene.add(character);character.visible=false;world.characterRadius=.48;
 const shadow=new T.Mesh(new T.CircleGeometry(.51,20),new T.MeshBasicMaterial({color:0x253e35,transparent:true,opacity:.28,depthWrite:false}));shadow.rotation.x=-Math.PI/2;shadow.position.y=.018;character.add(shadow);
 let actualSpeed=0,touchRunning=false;
 window.addEventListener('world-physics-changed',()=>{if(navMesh){scene.remove(navMesh);navMesh.geometry.dispose();navMesh.material.dispose();navMesh=null;}if($('navCheck').checked)$('navCheck').dispatchEvent(new Event('change'));});
 const harvesting=createHarvesting({world,character,greyMan,scene,isWalking:()=>walking,toast});
-let living=null,daily=null;
 const visibility=createVisibility({world,scene,camera,character,isWalking:()=>walking});
 const playUI=setupPlayUI({act:()=>living?.act(),returnHome:()=>living?.returnHome()});
 window.addEventListener('construction-relocated',()=>{keys.clear();playUI.release();});
@@ -61,9 +95,9 @@ const locomotion=createMovement({world,character,camera,controls,keys,playUI,unl
 function frame(){requestAnimationFrame(frame);visibility.restore();const dt=Math.min(clock.getDelta(),.04),time=clock.elapsedTime;if(animating){world.uniform.value+=dt;for(let i=0;i<world.runes.length;i++){const r=world.runes[i];r.rotation.y=0}for(const g of world.gates)g.barrier.material.opacity=.25+Math.sin(time*1.4)*.07;}
  if(cameraTween){let t=Math.min(1,(performance.now()-cameraTween.start)/1100);t=t*t*(3-2*t);camera.position.lerpVectors(cameraTween.from,cameraTween.to,t);controls.target.lerpVectors(cameraTween.oldTarget,cameraTween.target,t);camera.zoom=T.MathUtils.lerp(cameraTween.oldZoom,cameraTween.zoom,t);camera.updateProjectionMatrix();if(t>=1)cameraTween=null;}
  actualSpeed=locomotion.update(dt,walking&&!living?.blocked()&&!daily?.blocked()&&!document.hidden);if(walking&&!living?.blocked()&&!daily?.blocked()){
- const blocked=REGIONS.find(r=>r.requires&&!free&&!unlocked.has(r.requires)&&Math.hypot(character.position.x-r.x,character.position.z-r.z)<r.range+3);$('interact').hidden=!blocked;if(blocked)$('interact').textContent='Acceso cerrado · '+blocked.name+' · Consulta Progresión';
+  const blocked=REGIONS.find(r=>{if(!r.requires||free||unlocked.has(r.requires))return false;if(r.id==='sanctuary')return character.position.z<-35&&Math.hypot(character.position.x-r.x,character.position.z-r.z)<r.range+3;return Math.hypot(character.position.x-r.x,character.position.z-r.z)<r.range+3;});$('interact').hidden=!blocked;if(blocked)$('interact').textContent='Acceso cerrado · '+blocked.name+' · Consulta Progresión';
  }else $('interact').hidden=true;
- harvesting.update(dt);daily?.update(dt,actualSpeed);living?.update(dt);greyMan.update(dt,actualSpeed,actualSpeed>4.1);controls.update();visibility.apply();renderer.render(scene,camera);if(time-lastMapTime>.2){drawMap();lastMapTime=time;const p=walking?character.position:controls.target;$('position').textContent=`${Math.round(p.x)}, ${Math.round(p.z)} m · ${walking?'1,75 m':'Escala real'}`;}}
+ harvesting.update(dt);daily?.update(dt,actualSpeed);living?.update(dt);greyMan.update(dt,actualSpeed,actualSpeed>4.1);updateAtmosphere();controls.update();visibility.apply();renderer.render(scene,camera);if(time-lastMapTime>.2){drawMap();lastMapTime=time;const p=walking?character.position:controls.target;$('position').textContent=`${Math.round(p.x)}, ${Math.round(p.z)} m · ${walking?'1,75 m':'Escala real'}`;}}
 living=createLiving({world,character,camera,controls,harvesting,greyMan,toast,isWalking:()=>walking,grant});
 daily=createDailyLife({world,character,camera,controls,harvesting,living,greyMan,toast,grant,unlocked,isWalking:()=>walking});
 updateGates();drawProgress();
@@ -72,6 +106,11 @@ welcome=createWelcome({hasSave:existingSave,onBackdrop:()=>{
  controls.autoRotate=!matchMedia('(prefers-reduced-motion: reduce)').matches;controls.autoRotateSpeed=.22;controls.update();
 },onStart:()=>{controls.autoRotate=false;controls.enabled=true;keys.clear();playUI.release();toggleWalk(true);}});
 $('loading').style.display='none';frame();
+} catch (err) {
+  console.error("FATAL ERROR IN MAIN:", err);
+  if (typeof reportErr === 'function') reportErr(err);
+  $('loading').innerHTML='<b style="color:#ff8b8b;font-size:20px">Error al construir el mundo</b><pre style="color:#fff;background:#0d1d20;padding:16px;border-radius:8px;max-width:90vw;max-height:60vh;overflow:auto;font-size:13px;white-space:pre-wrap;text-align:left">'+(err.stack||err.message||err)+'</pre>';
+}
 
 $('characterView').onclick=()=>{if(!walking)toggleWalk(true);const target=character.position.clone().add(new T.Vector3(0,.9,0));controls.target.copy(target);camera.position.copy(target).add(new T.Vector3(2.8,1.9,4.2));camera.zoom=19;camera.updateProjectionMatrix();controls.update();};
 $('actionButton').onclick=()=>{if(walking)living?.act()};

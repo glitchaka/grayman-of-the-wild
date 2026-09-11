@@ -1,10 +1,11 @@
 import * as T from 'three';
+import {batchCharacter} from './mesh-batching.js';
 import {createPortraitHead} from './portrait-head.js';
 
 // Metre-scale, articulated adult characters. Surfaces are sculpted rings and
 // curved strands, never extruded sprites. +Z is the face / walking direction.
-export function createHeroineModel(type, gradient) {
- const root=new T.Group();root.name='Humanoide_'+type;
+export function createHeroineModel(type, gradient,quality='high') {
+ const high=quality==='high';const root=new T.Group();root.name='Humanoide_'+type;
  const palettes={
   mara:{skin:0xffcfb7,blush:0xd98a83,hair:0xce7797,shine:0xf5b6ca,dark:0x61354e,cloth:0xf2eee9,trim:0x393044,skirt:0x352838,eyes:0x58b889,metal:0xd7ae65},
   scarlett:{skin:0xecc09a,blush:0xc77867,hair:0xc6984e,shine:0xf5d28a,dark:0x59412f,cloth:0x572d39,trim:0x292631,skirt:0x963f48,eyes:0x639cad,metal:0xd0a450},
@@ -14,14 +15,14 @@ export function createHeroineModel(type, gradient) {
  function mat(c){if(!cache.has(c))cache.set(c,new T.MeshToonMaterial({color:c,gradientMap:gradient}));return cache.get(c)}
  function mesh(parent,geo,c,name,outline=false){const m=new T.Mesh(geo,mat(c));m.name=name;m.castShadow=true;m.receiveShadow=true;parent.add(m);if(false){const edge=new T.Mesh(geo,ink);edge.name='Contour';edge.scale.setScalar(1.022);edge.castShadow=false;m.add(edge)}return m}
  function joint(parent,name,x=0,y=0,z=0){const g=new T.Group();g.name=name;g.position.set(x,y,z);parent.add(g);return g}
- const sphere=new T.SphereGeometry(1,20,14);
+ const sphere=new T.SphereGeometry(1,high?12:8,high?8:5);
  function oval(g,name,c,x,y,z,rx,ry,rz,outline=false){const m=mesh(g,sphere,c,name,outline);m.position.set(x,y,z);m.scale.set(rx,ry,rz);return m}
  // Rings: [height, half width, half depth, centre Z]. Elliptical sections
  // establish clavicles, ribcage, waist, pelvis, knees and ankles continuously.
  function loft(g,name,c,rings,{n=32,from=0,to=Math.PI*2,pleat=0,outline=false,anatomy=false,neckline=false}={}){
-  const v=[],uv=[],ix=[],closed=Math.abs(to-from-Math.PI*2)<.001;
+  n=Math.min(n,high?20:10);const v=[],uv=[],ix=[],closed=Math.abs(to-from-Math.PI*2)<.001;
   const samples=[],curve=new T.CatmullRomCurve3(rings.map(([y,x,z])=>new T.Vector3(x,y,z)),false,'centripetal');
-  const rows=Math.max(rings.length-1,(rings.length-1)*4);
+  const rows=Math.max(rings.length-1,(rings.length-1)*(high?2:1));
   for(let k=0;k<=rows;k++){
    const t=k/rows,r=curve.getPoint(t),offIndex=t*(rings.length-1),oi=Math.min(rings.length-2,Math.floor(offIndex)),offset=T.MathUtils.lerp(rings[oi][3]||0,rings[oi+1][3]||0,offIndex-oi);
    samples.push([r.y,Math.max(.001,r.x),Math.max(.001,r.z),offset]);
@@ -38,22 +39,22 @@ export function createHeroineModel(type, gradient) {
   const m=mesh(g,geo,c,name,false);if(!closed){m.material=m.material.clone();m.material.side=T.DoubleSide}return m;
  }
  function strand(g,name,c,points,widths,depth=.55){
-  const curve=new T.CatmullRomCurve3(points.map(a=>new T.Vector3(...a))),steps=Math.max(14,points.length*5),sides=12,v=[],ix=[];
+  const curve=new T.CatmullRomCurve3(points.map(a=>new T.Vector3(...a))),steps=Math.max(6,points.length*(high?3:1)),sides=high?6:4,v=[],ix=[];
   for(let i=0;i<=steps;i++){const t=i/steps,pt=curve.getPoint(t),tan=curve.getTangent(t),axis=new T.Vector3(0,0,1);if(Math.abs(tan.z)>.94)axis.set(1,0,0);const u=new T.Vector3().crossVectors(tan,axis).normalize(),w=new T.Vector3().crossVectors(u,tan).normalize(),f=t*(widths.length-1),a=Math.min(widths.length-2,Math.floor(f)),r=T.MathUtils.lerp(widths[a],widths[a+1],f-a);for(let j=0;j<=sides;j++){const q=j/sides*Math.PI*2,off=u.clone().multiplyScalar(Math.cos(q)*r).addScaledVector(w,Math.sin(q)*r*depth);v.push(pt.x+off.x,pt.y+off.y,pt.z+off.z)}}
   for(let i=0;i<steps;i++)for(let j=0;j<sides;j++){const a=i*(sides+1)+j,b=a+1,c=a+sides+1,d=c+1;ix.push(a,c,b,b,c,d)}
   const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(v,3));geo.setIndex(ix);geo.computeVertexNormals();return mesh(g,geo,c,name)
  }
- function seam(g,name,c,points,r=.007){return mesh(g,new T.TubeGeometry(new T.CatmullRomCurve3(points.map(a=>new T.Vector3(...a))),24,r,5,false),c,name)}
+ function seam(g,name,c,points,r=.007){return mesh(g,new T.TubeGeometry(new T.CatmullRomCurve3(points.map(a=>new T.Vector3(...a))),high?12:5,r,high?4:3,false),c,name)}
  const body=joint(root,'Pelvis',0,.93),head=joint(body,'Cabeza',0,.815),hair=joint(head,'Cabello');
  loft(body,'Anatomia_torax',p.skin,[[.015,.152,.107],[.09,.201,.124],[.17,.158,.108],[.25,.122,.081],[.32,.143,.096],[.42,.176,.116],[.49,.18,.111],[.55,.17,.091],[.60,.193,.077],[.632,.125,.069],[.66,.048,.048],[.72,.047,.047]],{anatomy:true});
  loft(body,'Vestido_con_pinzas',p.cloth,[[.10,.204,.128],[.17,.166,.113],[.25,.13,.09],[.32,.15,.102],[.42,.184,.122],[.49,.187,.118],[.55,.177,.099],[.60,.197,.085],[.632,.13,.075],[.66,.051,.052]],{anatomy:true,neckline:type!=='lyra'});
  loft(body,'Cinturon',p.trim,[[.17,.171,.116],[.198,.157,.108]]);
  oval(body,'Hebilla',p.metal,0,.185,.119,.020,.019,.006);
- const portrait=createPortraitHead(head,p,gradient,type);
+ const portrait=createPortraitHead(head,p,gradient,type,quality);
  for(const side of [-1,1])oval(head,'Oreja',p.skin,side*.128,-.026,-.011,.021,.038,.016);
  // Fitted scalp leaves the entire face exposed; individual overlapping locks
  // make an asymmetric fringe and a readable hairstyle from all camera angles.
- mesh(hair,new T.SphereGeometry(1,28,16,0,Math.PI*2,0,1.45),p.hair,'Corona').scale.set(.144,.185,.125);
+ mesh(hair,new T.SphereGeometry(1,high?20:12,high?12:6,0,Math.PI*2,0,1.45),p.hair,'Corona').scale.set(.144,.185,.125);
  for(let i=0;i<9;i++){
   const x=(i-4)*.030;
   strand(hair,'Flequillo_'+i,i===2?p.shine:p.hair,[[x*.55,.176,.06],[x,.118,.123],[x+.022,.048+(i%3)*.024,.126],[x+.034,.016+(i%3)*.025,.119]],[.026,.031,.020,.001],.18);
@@ -147,11 +148,8 @@ export function createHeroineModel(type, gradient) {
  }
  // Movement is derived from actual displacement, not distance to the leader,
  // so companions stop stepping when their follow offset has been reached.
- let previous=null,phase=0,blend=0;
- function animate(dt,time,{working=false}={}){
-  const pos=root.position;
-  if(!previous)previous=pos.clone();
-  const distance=Math.hypot(pos.x-previous.x,pos.z-previous.z);previous.copy(pos);
+ let phase=0,blend=0;
+ function animate(dt,time,{working=false,distance=0}={}){
   const speed=dt>0?distance/dt:0;blend=T.MathUtils.lerp(blend,Math.min(1,speed/1.8),1-Math.exp(-dt*10));phase+=Math.min(distance,.25)*7;
   legs.forEach((leg,i)=>{const a=phase+i*Math.PI;leg.rotation.x=Math.sin(a)*.43*blend;knees[i].rotation.x=-Math.max(0,Math.sin(a+.65))*.66*blend});
   body.position.y=.93+Math.abs(Math.sin(phase*2))*.014*blend;
@@ -164,6 +162,7 @@ export function createHeroineModel(type, gradient) {
   portrait.blink(time);
   sways.forEach((g,i)=>{g.rotation.x=Math.sin(time*1.6+i)*.027+Math.sin(phase)*.065*blend;g.rotation.z=Math.sin(time*1.3+i)*.022});
  }
+ batchCharacter(root,gradient);
  root.userData.modelVersion='humanoid-portrait-2';
  return {g:root,body,head,leftArm:arms[0],rightArm:arms[1],tool,animate};
 }

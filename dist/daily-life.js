@@ -40,7 +40,7 @@ export function createDailyLife({world,character,camera,controls,harvesting,livi
  if(state.spear&&state.equipment.weapon==='none')state.equipment.weapon='spear';
  for(const key of ['food','foodBank'])state[key]={berries:key==='food'?4:0,raw:0,vegetables:0,roast:0,stew:0,fish:0,grilledFish:0,...state[key]};
  for(const k of ['hunger','energy','health'])state[k]=T.MathUtils.clamp(Number(state[k])||0,0,100);state.level=T.MathUtils.clamp(Number(state.level)||1,1,20);state.clock=Math.max(0,Number(state.clock)||0);
- const visual=createLifeWorld(world),residentNavigation=createResidentNavigation(world,unlocked);let lastSave=0,lastUI=0,actionCooldown=0,rest=0,activeRest=null,invulnerable=0,dirty=false,ready=false;
+ const visual=createLifeWorld(world),residentNavigation=createResidentNavigation(world,unlocked);const npcFrustum=new T.Frustum(),npcProjection=new T.Matrix4(),npcSphere=new T.Sphere(new T.Vector3(),1.5);let lastSave=0,lastUI=0,actionCooldown=0,rest=0,activeRest=null,invulnerable=0,dirty=false,ready=false;
  const sprouts=new Map(),hud=document.createElement('div');hud.id='lifeHud';hud.innerHTML='<button id="openJournal" aria-label="Abrir diario, mochila y habilidades"><span id="lifeLevel"></span><span class="xp-track"><span id="lifeXP"></span></span></button><div class="needs"><span title="Hambre"><i>Alimento</i><meter id="hungerMeter" min="0" max="100"></meter></span><span title="Energía"><i>Energía</i><meter id="energyMeter" min="0" max="100"></meter></span><span title="Salud"><i>Salud</i><meter id="healthMeter" min="0" max="100"></meter></span></div><small id="lifeDay"></small>';document.body.append(hud);
  let encounters=null,fishing=null;
  const active=()=>!encounters?.active&&!fishing?.active&&isWalking()&&!living.blocked()&&!document.hidden&&rest<=0;
@@ -418,6 +418,7 @@ export function createDailyLife({world,character,camera,controls,harvesting,livi
   for(const p of visual.plots){const s=state.plots[p.id];p.plant.visible=!!s;p.plant.scale.setScalar(s?.watered?.25+.75*T.MathUtils.clamp(1-(s.ready-state.clock)/240,0,1):.2)}
   for(const p of visual.nursery){const s=state.nursery[p.id];p.tree.visible=!!s;p.tree.scale.setScalar(s?.ready?T.MathUtils.clamp(1-(s.ready-state.clock)/600,.12,1):.12);p.c.removed=!s||state.clock<s.ready||Math.hypot(character.position.x-p.x,character.position.z-p.z)<1.25}
   for(const c of visual.chests){c.lid.rotation.x=state.chests[c.id]?-.95:0;c.lid.position.y=state.chests[c.id]?.3:0}
+  camera.updateMatrixWorld();npcProjection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);npcFrustum.setFromProjectionMatrix(npcProjection);residentNavigation.beginFrame();
   for(const npc of visual.residents){
    npc.g.visible=npc.h.stage===3;if(!npc.g.visible)continue;
    if(!npc.homePosition){
@@ -430,9 +431,17 @@ export function createDailyLife({world,character,camera,controls,harvesting,livi
     x:character.position.x-Math.sin(angle)*1.4-Math.cos(angle)*.45,
     z:character.position.z-Math.cos(angle)*1.4+Math.sin(angle)*.45
    }:npc.homePosition;
-   const npcDt=active()?dt:0;
+   const nearby=Math.hypot(npc.g.position.x-character.position.x,npc.g.position.z-character.position.z)<38;
+   const npcDt=active()&&(nearby||accompanying)?dt:0;
+   const oldX=npc.g.position.x,oldZ=npc.g.position.z;
    if(npcDt>0)residentNavigation.update(npc,target,npcDt);
-   npc.animate(npcDt,state.clock,{working:!accompanying});
+   npcSphere.center.copy(npc.g.position);npcSphere.center.y+=.95;
+   npc.g.visible=npcFrustum.intersectsSphere(npcSphere);
+   if(npc.g.visible){
+    npc.detail(1.93*camera.zoom/(camera.top-camera.bottom)*innerHeight);
+    const distance=Math.hypot(npc.g.position.x-oldX,npc.g.position.z-oldZ);
+    npc.animate(npcDt,state.clock,{working:!accompanying,distance});
+   }
   }
   const inChamber=Math.abs(character.position.x-85)<4.4&&Math.abs(character.position.z+54)<4.4&&isWalking();visual.chamberRoof.visible=!inChamber;for(const wall of visual.chamber.children){if(Math.abs(wall.position.x)===4.5)wall.visible=!inChamber||(camera.position.x-85)*wall.position.x<=0;if(Math.abs(wall.position.z)===4.5)wall.visible=!inChamber||(camera.position.z+54)*wall.position.z<=0;}
   const maxHp=maxPlayerHp();document.getElementById('lifeLevel').textContent=`Nv. ${state.level} · ${Math.floor(state.xp)}/${requirement(state.level)} XP`;document.getElementById('lifeXP').style.width=`${Math.min(100,state.xp/requirement(state.level)*100)}%`;for(const k of ['hunger','energy'])document.getElementById(k+'Meter').value=state[k];

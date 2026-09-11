@@ -2,7 +2,8 @@ import * as T from 'three';
 
 // Facial drawing wraps the actual sculpted head, including profile and nose.
 // It is a material on a volume, not a camera-facing character image.
-export function createPortraitHead(parent,p,gradient,type){
+const textures=new Map();
+export function createPortraitHead(parent,p,gradient,type,quality='high'){
  const hex=n=>'#'+n.toString(16).padStart(6,'0');
  function texture(closed){
   const canvas=document.createElement('canvas');canvas.width=canvas.height=1024;
@@ -31,9 +32,9 @@ export function createPortraitHead(parent,p,gradient,type){
   path('#efb3aa',()=>{c.moveTo(502,811);c.quadraticCurveTo(512,816,522,811)},true,3);
   const t=new T.CanvasTexture(canvas);t.colorSpace=T.SRGBColorSpace;t.anisotropy=4;t.name='Portrait_'+type+(closed?'_blink':'');return t;
  }
- const open=texture(false),closed=texture(true);
+ if(!textures.has(type))textures.set(type,[texture(false),texture(true)]);const [open,closed]=textures.get(type);
  const profile=[[-.165,.005,.018],[-.15,.042,.052],[-.12,.078,.077],[-.08,.108,.093],[-.03,.125,.103],[.025,.13,.108],[.09,.124,.105],[.14,.095,.08],[.167,.045,.04],[.176,.001,.001]];
- const points=profile.map(([y,x,z])=>new T.Vector3(x,y,z)),curve=new T.CatmullRomCurve3(points,false,'centripetal'),v=[],uv=[],ix=[],rows=64,n=64;
+ const points=profile.map(([y,x,z])=>new T.Vector3(x,y,z)),curve=new T.CatmullRomCurve3(points,false,'centripetal'),v=[],uv=[],ix=[],rows=quality==='high'?32:16,n=quality==='high'?32:16;
  for(let k=0;k<=rows;k++){
   const r=curve.getPoint(k/rows);
   for(let j=0;j<=n;j++){

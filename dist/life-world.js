@@ -1,5 +1,5 @@
 import * as T from 'three';
-import {createHeroineModel} from './characters/heroines.js';
+import {createResidentModel} from './characters/resident-model.js';
 // All additions are geometry, in the same metre scale as the original world.
 export function createLifeWorld(world){
  const root=new T.Group();root.name='Vida_cotidiana';world.layers.Ruinas.add(root);const mats=new Map(),boxGeo=new T.BoxGeometry(1,1,1);
@@ -42,7 +42,7 @@ export function createLifeWorld(world){
  const anvil=group('Enclume_du_campement',-52,85,2);box(anvil,0,.25,0,.8,.5,.8,0x6b4937);box(anvil,0,.58,0,.45,.2,.75,0x3d4349);box(anvil,0,.7,.1,.35,.15,.5,0x4f5861);box(anvil,0,.72,-.35,.18,.1,.3,0x5a6570);box(anvil,.1,.8,.1,.1,.06,.2,0x8a9299);box(anvil,.1,.79,-.08,.04,.04,.25,0x8b6540);box(anvil,.6,.2,.2,.6,.4,.6,0x50545a);box(anvil,.6,.42,.2,.5,.06,.5,0x2b221d);box(anvil,.6,.45,.2,.2,.05,.2,0xe85d26);const forgeLight=new T.PointLight(0xff6a28,1.2,3);forgeLight.position.set(.6,.6,.2);anvil.add(forgeLight);collider(-52,2.5,85,1.2,1,1.2);
  const alembic=group('Alambic_du_campement',-44,86,2);box(alembic,0,.35,0,1.3,.7,.7,0x7a5d3f);box(alembic,-.35,.8,0,.24,.3,.24,0x56a3b0);box(alembic,-.35,.98,0,.08,.15,.08,0x6ac2d1);box(alembic,-.15,.95,0,.2,.06,.06,0xb27747);box(alembic,0,.78,0,.18,.22,.18,0xe06060);box(alembic,.22,.78,.1,.14,.24,.14,0x4dd97b);box(alembic,.22,.76,-.15,.16,.2,.16,0xf2be4b);box(alembic,.42,.78,0,.14,.22,.14,0x9f56d9);collider(-44,2.5,86,1.4,1.1,.8);
   function createHeroine(id,name,type,x,z,y=2){
-   const model=createHeroineModel(type,world.gradient);
+   const model=createResidentModel(type,world.gradient);
    model.g.name='Heroine_'+id;model.g.position.set(x,y,z);root.add(model.g);
    return {...model,h:world.buildings.find(b=>b.id===id),x,z,y,id,type,name,targetX:x,targetZ:z,animTimer:0,workTimer:0};
   }

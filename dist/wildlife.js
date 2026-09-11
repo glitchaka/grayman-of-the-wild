@@ -126,6 +126,7 @@ export function createWildlife({world,visual,character,greyMan,state,now,active,
    if(isDiurnal&&duskOrNight&&a.alarm<=0){
     if(homeDistance<1.5){g.visible=false;continue}
    }
+   if(distance>45){g.visible=false;continue}
    g.visible=true;g.rotation.z=a.hit>0?Math.sin(a.hit*50)*.13:0;
    if(def.ethereal){g.position.y=world.elevation(s.x,s.z)+.45+Math.sin(now()*2.8)*.22;g.rotation.z=Math.sin(now()*1.5)*.06}
    const sensed=distance<(def.mode==='hostile'?9:def.mode==='territorial'?4.7:6)&&Math.abs(character.position.y-g.position.y)<2.2&&lineFree(s.x,s.z,g.position.y);

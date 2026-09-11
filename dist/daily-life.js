@@ -4,6 +4,7 @@ import {createDungeonSystem} from './dungeons.js';
 import * as T from 'three';
 import {REGIONS} from './world.js';
 import {createLifeWorld} from './life-world.js';
+import {createResidentNavigation} from './characters/resident-navigation.js';
 import {createWildlife} from './wildlife.js';
 const KEY='greyman-life-v2',FOOD={berries:'Bayas',raw:'Carne cruda',vegetables:'Hortalizas',roast:'Carne asada',stew:'Guiso',fish:'Pescado crudo',grilledFish:'Pescado asado'},SKILLS={logging:'Tala',mining:'Minería',gardening:'Cultivo',cooking:'Cocina',hunting:'Caza',building:'Construcción',exploration:'Exploración',fishing:'Pesca'};
 const WEAPONS=[
@@ -39,7 +40,7 @@ export function createDailyLife({world,character,camera,controls,harvesting,livi
  if(state.spear&&state.equipment.weapon==='none')state.equipment.weapon='spear';
  for(const key of ['food','foodBank'])state[key]={berries:key==='food'?4:0,raw:0,vegetables:0,roast:0,stew:0,fish:0,grilledFish:0,...state[key]};
  for(const k of ['hunger','energy','health'])state[k]=T.MathUtils.clamp(Number(state[k])||0,0,100);state.level=T.MathUtils.clamp(Number(state.level)||1,1,20);state.clock=Math.max(0,Number(state.clock)||0);
- const visual=createLifeWorld(world);let lastSave=0,lastUI=0,actionCooldown=0,rest=0,activeRest=null,invulnerable=0,dirty=false,ready=false;
+ const visual=createLifeWorld(world),residentNavigation=createResidentNavigation(world,unlocked);let lastSave=0,lastUI=0,actionCooldown=0,rest=0,activeRest=null,invulnerable=0,dirty=false,ready=false;
  const sprouts=new Map(),hud=document.createElement('div');hud.id='lifeHud';hud.innerHTML='<button id="openJournal" aria-label="Abrir diario, mochila y habilidades"><span id="lifeLevel"></span><span class="xp-track"><span id="lifeXP"></span></span></button><div class="needs"><span title="Hambre"><i>Alimento</i><meter id="hungerMeter" min="0" max="100"></meter></span><span title="Energía"><i>Energía</i><meter id="energyMeter" min="0" max="100"></meter></span><span title="Salud"><i>Salud</i><meter id="healthMeter" min="0" max="100"></meter></span></div><small id="lifeDay"></small>';document.body.append(hud);
  let encounters=null,fishing=null;
  const active=()=>!encounters?.active&&!fishing?.active&&isWalking()&&!living.blocked()&&!document.hidden&&rest<=0;
@@ -418,49 +419,20 @@ export function createDailyLife({world,character,camera,controls,harvesting,livi
   for(const p of visual.nursery){const s=state.nursery[p.id];p.tree.visible=!!s;p.tree.scale.setScalar(s?.ready?T.MathUtils.clamp(1-(s.ready-state.clock)/600,.12,1):.12);p.c.removed=!s||state.clock<s.ready||Math.hypot(character.position.x-p.x,character.position.z-p.z)<1.25}
   for(const c of visual.chests){c.lid.rotation.x=state.chests[c.id]?-.95:0;c.lid.position.y=state.chests[c.id]?.3:0}
   for(const npc of visual.residents){
-   npc.g.visible=npc.h.stage===3;
-   if(state.companion===npc.id){
-    const targetDist=1.3,angle=character.rotation.y;
-    const tx=character.position.x-Math.sin(angle)*targetDist-Math.cos(angle)*0.5;
-    const tz=character.position.z-Math.cos(angle)*targetDist+Math.sin(angle)*0.5;
-    const ty=character.position.y;
-    npc.g.position.x=T.MathUtils.lerp(npc.g.position.x,tx,dt*5.5);
-    npc.g.position.z=T.MathUtils.lerp(npc.g.position.z,tz,dt*5.5);
-    npc.g.position.y=ty;
-    const dx=character.position.x-npc.g.position.x,dz=character.position.z-npc.g.position.z;
-    const d=Math.hypot(dx,dz);
-    if(d>0.15)npc.g.rotation.y=Math.atan2(dx,dz);
-    if(d>0.35){
-     const legPhase=state.clock*9;
-     npc.leftArm.rotation.x=Math.sin(legPhase)*0.45;
-     npc.rightArm.rotation.x=-Math.sin(legPhase)*0.45;
-     npc.body.position.y=0.82+Math.abs(Math.sin(legPhase*2))*0.04;
-    }else{
-     npc.leftArm.rotation.x=T.MathUtils.lerp(npc.leftArm.rotation.x,0,dt*4);
-     npc.rightArm.rotation.x=T.MathUtils.lerp(npc.rightArm.rotation.x,0,dt*4);
-     npc.body.position.y=0.82;
-     npc.body.rotation.z=Math.sin(state.clock*1.5)*0.025;
-    }
-   }else{
-    npc.g.position.x=T.MathUtils.lerp(npc.g.position.x,npc.x,dt*3);
-    npc.g.position.z=T.MathUtils.lerp(npc.g.position.z,npc.z,dt*3);
-    npc.g.position.y=npc.y;
-    if(npc.type==='mara'){
-     npc.rightArm.rotation.x=Math.sin(state.clock*2.5)*0.35+0.25;
-     npc.leftArm.rotation.x=0.1;npc.head.rotation.x=0.12;npc.body.rotation.z=Math.sin(state.clock*1.2)*0.02;
-    }else if(npc.type==='scarlett'){
-     const strike=Math.sin(state.clock*3.8);
-     npc.rightArm.rotation.x=strike>0?strike*0.85:-strike*0.25;
-     npc.leftArm.rotation.x=-0.2;npc.body.rotation.z=strike>0.6?0.04:-0.02;
-     if(visual.anvil&&strike>0.85){visual.anvil.children.find(c=>c.isPointLight)?.intensity===1.2&&(visual.anvil.children.find(c=>c.isPointLight).intensity=2.2);}
-     else if(visual.anvil){visual.anvil.children.find(c=>c.isPointLight)?.intensity===2.2&&(visual.anvil.children.find(c=>c.isPointLight).intensity=1.2);}
-    }else if(npc.type==='lyra'){
-     npc.leftArm.rotation.x=Math.sin(state.clock*2)*0.3+0.2;
-     npc.rightArm.rotation.z=Math.cos(state.clock*1.7)*0.25;
-     npc.head.rotation.y=Math.sin(state.clock*1.1)*0.15;npc.body.rotation.z=Math.sin(state.clock*1.3)*0.02;
-    }
+   npc.g.visible=npc.h.stage===3;if(!npc.g.visible)continue;
+   if(!npc.homePosition){
+    const h=npc.h,safe=residentNavigation.nearest(h.x-2,h.z+h.d/2+1.4,8,true);
+    if(!safe){npc.g.visible=false;continue}
+    npc.homePosition=safe;npc.g.position.set(safe.x,safe.y,safe.z);
    }
-   npc.animate(dt,state.clock);
+   const accompanying=state.companion===npc.id;
+   const angle=character.rotation.y,target=accompanying?{
+    x:character.position.x-Math.sin(angle)*1.4-Math.cos(angle)*.45,
+    z:character.position.z-Math.cos(angle)*1.4+Math.sin(angle)*.45
+   }:npc.homePosition;
+   const npcDt=active()?dt:0;
+   if(npcDt>0)residentNavigation.update(npc,target,npcDt);
+   npc.animate(npcDt,state.clock,{working:!accompanying});
   }
   const inChamber=Math.abs(character.position.x-85)<4.4&&Math.abs(character.position.z+54)<4.4&&isWalking();visual.chamberRoof.visible=!inChamber;for(const wall of visual.chamber.children){if(Math.abs(wall.position.x)===4.5)wall.visible=!inChamber||(camera.position.x-85)*wall.position.x<=0;if(Math.abs(wall.position.z)===4.5)wall.visible=!inChamber||(camera.position.z+54)*wall.position.z<=0;}
   const maxHp=maxPlayerHp();document.getElementById('lifeLevel').textContent=`Nv. ${state.level} · ${Math.floor(state.xp)}/${requirement(state.level)} XP`;document.getElementById('lifeXP').style.width=`${Math.min(100,state.xp/requirement(state.level)*100)}%`;for(const k of ['hunger','energy'])document.getElementById(k+'Meter').value=state[k];

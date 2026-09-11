@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>GrayMan of the Wild â€” Babylon V3</title>
+<style>
+html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#0b1019;font-family:Inter,Segoe UI,system-ui,sans-serif}
+#c{width:100%;height:100%;display:block;touch-action:none}
+#ui{position:fixed;inset:0;pointer-events:none;color:#f5f7fb}
+.panel{background:linear-gradient(180deg,rgba(9,13,20,.83),rgba(9,13,20,.68));border:1px solid rgba(255,255,255,.14);box-shadow:0 14px 40px rgba(0,0,0,.28);backdrop-filter:blur(12px);border-radius:12px}
+#title{position:absolute;top:14px;left:14px;padding:10px 13px;font-size:12px;font-weight:900;letter-spacing:.08em}
+#title small{display:block;font-weight:500;letter-spacing:0;opacity:.7;margin-top:3px}
+#stats{position:absolute;top:14px;right:14px;padding:9px 12px;font-size:11px;line-height:1.5;text-align:right}
+#hint{position:absolute;left:14px;bottom:14px;padding:9px 12px;font-size:11px;line-height:1.4;max-width:500px}
+#buttons{position:absolute;right:14px;bottom:14px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:7px;max-width:62vw;pointer-events:auto}
+button{border:1px solid rgba(255,255,255,.13);border-radius:9px;background:rgba(9,13,20,.84);color:#f7f8fb;padding:8px 11px;font-weight:750;font-size:11px;cursor:pointer}
+button:hover{background:rgba(32,43,58,.94)}
+</style>
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <div id="title" class="panel">BABYLON Â· V3<small>mundo continuo + islas Â· escenario estÃ¡tico = 1 mesh</small></div>
+  <div id="stats" class="panel">cargandoâ€¦</div>
+  <div id="hint" class="panel">Arrastrar: orbitar Â· rueda: zoom Â· botÃ³n derecho: desplazar</div>
+  <div id="buttons">
+    <button data-view="map">Mapa</button>
+    <button data-view="garden">JardÃ­n</button>
+    <button data-view="coast">Costa</button>
+    <button data-view="cave">Cueva</button>
+    <button data-view="caveIn">Interior cueva</button>
+    <button data-view="sanctuary">Santuario</button>
+    <button data-view="settlement">Poblado / NPC</button>
+    <button data-view="storm">Isla Tormenta</button>
+    <button data-view="atoll">AtolÃ³n</button>
+    <button data-view="tides">CÃ¡mara Mareas</button>
+  </div>
+</div>
+<script>
+(()=>{
+'use strict';
+const canvas=document.getElementById('c');
+const engine=new BABYLON.Engine(canvas,true,{antialias:true,preserveDrawingBuffer:true,stencil:true,adaptToDeviceRatio:true});
+engine.setHardwareScalingLevel(Math.max(1,window.devicePixelRatio>1.5?1.25:1));
+const scene=new BABYLON.Scene(engine);
+scene.clearColor=new BABYLON.Color4(.42,.60,.70,1);
+scene.fogMode=BABYLON.Scene.FOGMODE_LINEAR;scene.fogStart=145;scene.fogEnd=315;scene.fogColor=new BABYLON.Color3(.42,.60,.70);
+scene.imageProcessingConfiguration.exposure=1.08;scene.imageProcessingConfiguration.contrast=1.18;
+const camera=new BABYLON.ArcRotateCamera('camera',-2.28,.98,178,new BABYLON.Vector3(-5,5,-2),scene);
+camera.attachControl(canvas,true);camera.lowerRadiusLimit=8;camera.upperRadiusLimit=280;camera.wheelDeltaPercentage=.009;camera.panningSensibility=75;camera.inertia=.78;camera.minZ=.08;camera.maxZ=700;
+const hemi=new BABYLON.HemisphericLight('hemi',new BABYLON.Vector3(.25,1,.15),scene);hemi.intensity=.78;hemi.groundColor=new BABYLON.Color3(.13,.17,.18);
+const sun=new BABYLON.DirectionalLight('sun',new BABYLON.Vector3(-.58,-1,-.42),scene);sun.position.set(95,145,80);sun.intensity=1.52;
+const shadow=new BABYLON.ShadowGenerator(2048,sun);shadow.usePercentageCloserFiltering=true;shadow.bias=.0006;shadow.normalBias=.03;
+const pipeline=new BABYLON.DefaultRenderingPipeline('pipe',true,scene,[camera]);pipeline.fxaaEnabled=true;pipeline.samples=4;pipeline.bloomEnabled=true;pipeline.bloomThreshold=.93;pipeline.bloomWeight=.12;pipeline.bloomKernel=44;
+const C=h=>BABYLON.Color3.FromHexString(h);
+const RG=(h,a=1)=>{const c=C(h);return[c.r,c.g,c.b,a]};
+const COL={grass:RG('#5e924f'),grass2:RG('#79a65b'),grassDark:RG('#456f43'),path:RG('#aa936c'),sand:RG('#d8bd86'),stone:RG('#929c9f'),stone2:RG('#6d777c'),ruin:RG('#7b8975'),pale:RG('#c4ceca'),cave:RG('#5b566c'),caveDark:RG('#353644'),crystal:RG('#62e8e9'),crystal2:RG('#b4fff0'),wood:RG('#6c472e'),wood2:RG('#8d643d'),white:RG('#f1ece3'),dark:RG('#171b22'),gold:RG('#c79b43'),red:RG('#a64246'),green:RG('#397e4c'),blue:RG('#2f7593'),black:RG('#24222c'),skin:RG('#efb29e'),skin2:RG('#c98072'),pink:RG('#b56978'),blonde:RG('#e3bd72'),silver:RG('#d7dce6'),purple:RG('#675b85')};
+
+class Geo{
+ constructor(name){this.name=name;this.p=[];this.i=[];this.c=[];this.uv=[];}
+ v(x,y,z,col,u=0,v=0){this.p.push(x,y,z);this.c.push(...col);this.uv.push(u,v);return this.p.length/3-1;}
+ tri(a,b,c){this.i.push(a,b,c)}
+ quad(a,b,c,d,col){const ia=this.v(...a,col,0,0),ib=this.v(...b,col,1,0),ic=this.v(...c,col,1,1),id=this.v(...d,col,0,1);this.i.push(ia,ib,ic,ia,ic,id)}
+ box(x,y,z,w,h,d,col,ry=0,faces='all'){
+  const hx=w/2,hy=h/2,hz=d/2,cs=Math.cos(ry),sn=Math.sin(ry);
+  const T=(px,py,pz)=>[x+px*cs-pz*sn,y+py,z+px*sn+pz*cs];
+  const p000=T(-hx,-hy,-hz),p100=T(hx,-hy,-hz),p110=T(hx,hy,-hz),p010=T(-hx,hy,-hz),p001=T(-hx,-hy,hz),p101=T(hx,-hy,hz),p111=T(hx,hy,hz),p011=T(-hx,hy,hz);
+  if(faces==='all'||faces.includes('f'))this.quad(p001,p101,p111,p011,col);
+  if(faces==='all'||faces.includes('b'))this.quad(p100,p000,p010,p110,col);
+  if(faces==='all'||faces.includes('l'))this.quad(p000,p001,p011,p010,col);
+  if(faces==='all'||faces.includes('r'))this.quad(p101,p100,p110,p111,col);
+  if(faces==='all'||faces.includes('t'))this.quad(p010,p011,p111,p110,col);
+  if(faces==='all'||faces.includes('d'))this.quad(p000,p100,p101,p001,col);
+ }
+ cyl(x,y,z,r,h,col,n=8,cap=true,ry=0){
+  const base=this.p.length/3;
+  for(let k=0;k<n;k++){const a=ry+k/n*Math.PI*2;this.v(x+Math.cos(a)*r,y-h/2,z+Math.sin(a)*r,col,k/n,0);this.v(x+Math.cos(a)*r,y+h/2,z+Math.sin(a)*r,col,k/n,1)}
+  for(let k=0;k<n;k++){const a=base+k*2,b=base+((k+1)%n)*2;this.i.push(a,b,b+1,a,b+1,a+1)}
+  if(cap){const cb=this.v(x,y-h/2,z,col,.5,.5),ct=this.v(x,y+h/2,z,col,.5,.5);for(let k=0;k<n;k++){const a=base+k*2,b=base+((k+1)%n)*2;this.i.push(cb,b,a,ct,a+1,b+1)}}
+ }
+ taper(x,y,z,r0,r1,h,col,n=8,ry=0){
+  const base=this.p.length/3;
+  for(let k=0;k<n;k++){const a=ry+k/n*Math.PI*2;this.v(x+Math.cos(a)*r0,y-h/2,z+Math.sin(a)*r0,col,k/n,0);this.v(x+Math.cos(a)*r1,y+h/2,z+Math.sin(a)*r1,col,k/n,1)}
+  for(let k=0;k<n;k++){const a=base+k*2,b=base+((k+1)%n)*2;this.i.push(a,b,b+1,a,b+1,a+1)}
+  const cb=this.v(x,y-h/2,z,col),ct=this.v(x,y+h/2,z,col);for(let k=0;k<n;k++){const a=base+k*2,b=base+((k+1)%n)*2;this.i.push(cb,b,a,ct,a+1,b+1)}
+ }
+ rock(x,y,z,s,col,seed=0){
+  const n=9, rings=3, ringIdx=[];
+  for(let j=0;j<rings;j++){const yy=y+j*s*.42,rr=s*(j===0?.58:j===1?.78:.42),arr=[];for(let k=0;k<n;k++){const a=k/n*Math.PI*2;const wob=1+.16*Math.sin(k*2.17+seed*1.7+j);arr.push(this.v(x+Math.cos(a)*rr*wob,yy,z+Math.sin(a)*rr*(1+.1*Math.cos(k+seed)),col,k/n,j/(rings-1)))}ringIdx.push(arr)}
+  const bot=this.v(x,y-s*.08,z,col),top=this.v(x,y+s*1.35,z,col);
+  for(let k=0;k<n;k++){const q=(k+1)%n;this.i.push(bot,ringIdx[0][q],ringIdx[0][k]);for(let j=0;j<rings-1;j++)this.i.push(ringIdx[j][k],ringIdx[j][q],ringIdx[j+1][q],ringIdx[j][k],ringIdx[j+1][q],ringIdx[j+1][k]);this.i.push(ringIdx[2][k],ringIdx[2][q],top)}
+ }
+ tube(points,radii,col,n=10,inside=false){
+  const rings=[];
+  for(let j=0;j<points.length;j++){const p=points[j],r=Array.isArray(radii)?radii[j]:radii,arr=[];for(let k=0;k<n;k++){const a=k/n*Math.PI*2,ry=r*(.86+.14*Math.sin(k*2.4+j*.7));arr.push(this.v(p[0]+Math.cos(a)*r,p[1]+Math.sin(a)*ry,p[2],col,k/n,j/(points.length-1)))}rings.push(arr]}
+  for(let j=0;j<rings.length-1;j++)for(let k=0;k<n;k++){const q=(k+1)%n,a=rings[j][k],b=rings[j][q],c=rings[j+1][q],d=rings[j+1][k];inside?this.i.push(a,c,b,a,d,c):this.i.push(a,b,c,a,c,d)}
+ }
+ mesh(name,material,sceneRef=scene){const m=new BABYLON.Mesh(name,sceneRef),vd=new BABYLON.VertexData(),norm=[];vd.positions=this.p;vd.indices=this.i;vd.colors=this.c;vd.uvs=this.uv;BABYLON.VertexData.ComputeNormals(this.p,this.i,norm);vd.normals=norm;vd.applyToMesh(m);m.material=material;m.hasVertexAlpha=true;return m}
+}
+function vmat(name){const m=new BABYLON.StandardMaterial(name,scene);m.diffuseColor=new BABYLON.Color3(1,1,1);m.specularColor=new BABYLON.Color3(.025,.025,.025);m.roughness=1;m.useVertexColors=true;return m}
+const staticMat=vmat('staticMat');
+const g=new Geo('world-static');
+
+const REGIONS=[[-57,48,35],[49,32,34],[-66,-57,34],[16,-54,37]];
+function shore(z){return 40+8*Math.sin(z/15)+21*Math.exp(-(((z-30)/17)**2))
+function islandType(x,z){if(Math.hypot((x-84)*.9,z+54)<18)return 1;if(Math.hypot(x-87,z-79)7±#;if(Math.hypot(x-95,z+75)<18)return 3;return 0}
+function mainLand(x,z){return x>-113+5*Math.sin(z/12)&&x<shore(z)&&z>-110+4*Math.sin(x/12)&&z<110+4*Math.cos(x/13)}
+function onLand(x,z){return mainLand(x,z)||!!islandType(x,z)}
+const routes=[[[-57,83],[-57,48],[-20,43],[15,40],[49,32]],[[49,32],[36,7],[35,-22],[16,-29]],[[16,-54],[-20,-48],[-66,-57]],[[-57,48],[-72,15],[-72,-18],[-66,-36]]];
+function pathDist(x,z){let best=1e9;for(const pts of routes)for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i],dx=b[0]-a[0],dz=b[1]-a[1],t=Math.max(0,Math.min(1,((x-a[0])*dx+(r-a[1])*dz)/(dx*dx+dz*dz)));best=Math.min(best,Math.hypot(x-a[0]-dx*t,z-a[1]-dz
+J_\™]\›ˆ™\ÝB™[˜Ý[ÛˆÜ›Ý[™
+Š^ÚYŠ[Û“[™
+ŠJ\™]\›ˆLKŽØÛÛœÝ]Z\Û[™\JŠNÚYŠ]OOLÊ^ØÛÛœÝSX]š\Ý
+NMKŠÍÍJNÜ™]\›ˆKŒÊÓX]›X^
+MY
+J‹ŒLŠ
